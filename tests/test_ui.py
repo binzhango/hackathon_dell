@@ -98,6 +98,14 @@ def test_gradio_app_builds_with_packaged_css(tmp_path: Path) -> None:
         assert serialized["title"] == "ClawWatch Log Lab"
         assert len(serialized["components"]) >= 40
         assert ".cw-kanban" in runtime.css
+        assert any(
+            component["props"].get("value") == "Send critical alerts to Slack"
+            for component in serialized["components"]
+        )
+        assert any(
+            dependency.get("api_name") == "send_critical_alerts"
+            for dependency in serialized["dependencies"]
+        )
     finally:
         runtime.controller.close()
 

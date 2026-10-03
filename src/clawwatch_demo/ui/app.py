@@ -16,6 +16,7 @@ from clawwatch_demo.config import AppConfig
 from clawwatch_demo.monitoring import filter_options, list_runs
 from clawwatch_demo.replay import ReplayController, recover_interrupted_runs
 from clawwatch_demo.review import REVIEW_STAGES
+from clawwatch_demo.review_slack import ReviewSlackNotifier
 from clawwatch_demo.ui.callbacks import DashboardCallbacks
 from clawwatch_demo.ui.render import board_html, header_html, notice_html
 
@@ -23,6 +24,7 @@ from clawwatch_demo.ui.render import board_html, header_html, notice_html
 @dataclass(frozen=True)
 class DashboardRuntime:
     controller: ReplayController
+    slack_notifier: ReviewSlackNotifier
     recovered_run_ids: tuple[int, ...]
     theme: Any
     css: str
@@ -50,7 +52,8 @@ def create_app(
 ) -> tuple[gr.Blocks, DashboardRuntime]:
     recovered = recover_interrupted_runs(config.storage.database) if recover else ()
     controller = ReplayController(config.storage.database)
-    callbacks = DashboardCallbacks(config.storage.database, controller)
+    slack_notifier = ReviewSlackNotifier(config.storage.database, config.project_root / ".env")
+    callbacks = DashboardCallbacks(config.storage.database, controller, slack_notifier)
     event_types, severities = filter_options(config.storage.database)
     initial_runs = list_runs(config.storage.database)
     run_choices = [
@@ -265,6 +268,13 @@ def create_app(
                         add_review_button = gr.Button("Add selected event to review")
 
             with gr.Tab("Review board"):
+                gr.Markdown(
+                    "Open **critical** cards across all runs are sent to Slack automatically "
+                    "every 30 seconds while the server runs. Successful sends are recorded "
+                    "in History and skipped on future checks."
+                )
+                send_slack_button = gr.Button("Send critical alerts to Slack")
+                slack_notice = gr.HTML(callbacks.slack_status())
                 board = gr.HTML(
                     board_html([], {stage: 0 for stage in REVIEW_STAGES}),
                     elem_id="cw-board-wrap",
@@ -422,6 +432,23 @@ def create_app(
             concurrency_id="review-controls",
         )
         wire_refresh(add_event)
+        add_event.then(
+            callbacks.send_critical_alerts,
+            outputs=slack_notice,
+            concurrency_limit=1,
+            concurrency_id="slack-alerts",
+        )
+        send_slack_button.click(
+            callbacks.send_critical_alerts,
+            outputs=slack_notice,
+            concurrency_limit=1,
+            concurrency_id="slack-alerts",
+        )
+        refresh_timer.tick(
+            callbacks.slack_status,
+            outputs=slack_notice,
+            show_progress="hidden",
+        )
         card_selector.input(
             callbacks.load_review_card,
             inputs=card_selector,
@@ -473,6 +500,7 @@ def create_app(
 
     return demo, DashboardRuntime(
         controller=controller,
+        slack_notifier=slack_notifier,
         recovered_run_ids=recovered,
         theme=theme,
         css=css,
@@ -483,6 +511,7 @@ def launch_dashboard(config: AppConfig) -> int:
     with application_lock(config.storage.database):
         demo, runtime = create_app(config)
         try:
+            runtime.slack_notifier.start()
             demo.queue(default_concurrency_limit=4).launch(
                 server_name=config.server.host,
                 server_port=config.server.port,
@@ -494,5 +523,6 @@ def launch_dashboard(config: AppConfig) -> int:
                 css=runtime.css,
             )
         finally:
+            runtime.slack_notifier.close()
             runtime.controller.close()
     return 0

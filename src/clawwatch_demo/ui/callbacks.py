@@ -26,14 +26,31 @@ from clawwatch_demo.review import (
     review_counts,
     update_review_card,
 )
+from clawwatch_demo.review_slack import ReviewSlackNotifier
 from clawwatch_demo.storage import connect
 from clawwatch_demo.ui.render import board_html, metrics_html, notice_html, status_html
 
 
 class DashboardCallbacks:
-    def __init__(self, database: Path, controller: ReplayController) -> None:
+    def __init__(
+        self,
+        database: Path,
+        controller: ReplayController,
+        slack_notifier: ReviewSlackNotifier | None = None,
+    ) -> None:
         self.database = database
         self.controller = controller
+        self.slack_notifier = slack_notifier
+
+    def send_critical_alerts(self) -> str:
+        if self.slack_notifier is None:
+            return notice_html("Slack notifier is unavailable.", kind="error")
+        return notice_html(self.slack_notifier.check())
+
+    def slack_status(self) -> str:
+        return notice_html(
+            self.slack_notifier.status if self.slack_notifier else "Slack notifier is unavailable."
+        )
 
     @staticmethod
     def _run_id(value: Any) -> int | None:

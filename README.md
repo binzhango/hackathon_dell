@@ -96,6 +96,28 @@ printf '%s\n' "[CRITICAL] Generated event" | ./scripts/send_slack.sh --stdin
 The script never prints the token. Slack failures such as `invalid_auth`, `missing_scope`, or
 `not_in_channel` are returned as readable errors and a nonzero exit status.
 
+The review board automatically checks every 30 seconds while the dashboard server runs,
+even with the browser closed. Cards with severity `critical` (case insensitive) in **New** or
+**Investigating** are sent to the configured Slack channel across all replay runs. Adding a
+card from the monitor also triggers a check. Resolved, dismissed, and noncritical cards are
+skipped. The **Send critical alerts to Slack** button runs the same check immediately.
+
+To call that same operation from another button or a terminal:
+
+```bash
+./scripts/send_critical_reviews.sh
+./scripts/send_critical_reviews.sh --dry-run
+./scripts/send_critical_reviews.sh --config config/demo.toml --env-file .env
+```
+
+Each check handles up to 20 pending cards, oldest first; later checks drain any backlog.
+Dry runs validate Slack settings and report candidate card IDs without sending or marking
+them delivered. Successful sends appear as `review_slack_sent` in History and persist across
+restarts, so refreshes, repeated clicks, and concurrent script calls skip delivered cards.
+Failures remain pending for the next check and appear in the board's Slack status. A crash
+between Slack accepting a message and the local audit commit can still cause a duplicate.
+The button and script share `clawwatch_demo.review_slack.send_critical_reviews` directly.
+
 The final stress checks sustained 99.9 events/second for a real-time 1,000-event run and
 persisted a controllable-clock, full-corpus replay of 100,000 unique sequences and source
 events. Five dashboard snapshots over that full run took 0.250–0.259 seconds each. The UI

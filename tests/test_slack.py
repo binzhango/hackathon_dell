@@ -99,7 +99,9 @@ def test_send_slack_message_reports_network_error() -> None:
         )
 
 
-def test_cli_dry_run_does_not_show_token(tmp_path: Path, capsys) -> None:
+def test_cli_dry_run_does_not_show_token(tmp_path: Path, capsys, monkeypatch) -> None:
+    monkeypatch.delenv("SLACK_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_CHANNEL_ID", raising=False)
     env_file = tmp_path / ".env"
     env_file.write_text(
         "SLACK_TOKEN=xoxb-super-secret-token\nSLACK_CHANNEL_ID=CTEST\n",
