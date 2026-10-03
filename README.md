@@ -67,13 +67,34 @@ interrupted and resumes from its last committed sequence only after an explicit 
 Launch the local dashboard:
 
 ```bash
-rtk proxy .venv/bin/clawwatch-demo serve --config config/demo.toml
+./scripts/start_gradio.sh
 ```
+
+To use another configuration file, run
+`./scripts/start_gradio.sh --config path/to/config.toml`. The server remains attached to
+the terminal and stops cleanly with `Ctrl+C`.
 
 Open `http://127.0.0.1:7860`. The monitor provides replay controls, live counters, pandas-
 backed charts and tables, literal search, event details, original payload inspection, run
 history, and a four-stage review board. Review notes, moves, revision checks, and activity
 history persist in the repository SQLite database.
+
+Send an alert to Slack using the bot token and channel configured in `.env`:
+
+```bash
+./scripts/send_slack.sh "[CRITICAL] AI agent detected suspicious privilege escalation"
+```
+
+Use `--dry-run` to validate the configuration without contacting Slack, `--channel C123...`
+to override the configured channel, or pipe a generated message through standard input:
+
+```bash
+./scripts/send_slack.sh "configuration test" --dry-run
+printf '%s\n' "[CRITICAL] Generated event" | ./scripts/send_slack.sh --stdin
+```
+
+The script never prints the token. Slack failures such as `invalid_auth`, `missing_scope`, or
+`not_in_channel` are returned as readable errors and a nonzero exit status.
 
 The final stress checks sustained 99.9 events/second for a real-time 1,000-event run and
 persisted a controllable-clock, full-corpus replay of 100,000 unique sequences and source
