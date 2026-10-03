@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ClawWatch local runtime data
+/var/*
+!/var/.gitkeep
