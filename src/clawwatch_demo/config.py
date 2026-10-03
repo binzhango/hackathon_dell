@@ -104,7 +104,10 @@ def _resolve_repo_path(root: Path, raw_value: str, field: str) -> Path:
 
 
 def load_config(
-    config_path: str | Path = "config/demo.toml", *, project_root: Path | None = None
+    config_path: str | Path = "config/demo.toml",
+    *,
+    project_root: Path | None = None,
+    require_dataset: bool = True,
 ) -> AppConfig:
     """Load and validate a TOML configuration file."""
     path = Path(config_path).expanduser()
@@ -131,7 +134,7 @@ def load_config(
     source = _resolve_repo_path(
         root, _required(data_section, "data", "source", str), "[data].source"
     )
-    if not source.is_file():
+    if require_dataset and not source.is_file():
         raise ConfigError(f"Dataset file does not exist: {source}")
     repository = _required(data_section, "data", "repository", str).strip()
     revision = _required(data_section, "data", "revision", str).strip()

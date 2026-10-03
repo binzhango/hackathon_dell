@@ -67,6 +67,7 @@ httpx2==2.13.1
     # via huggingface-hub
 huggingface-hub==2.1.1
     # via
+    #   clawwatch-demo (pyproject.toml)
     #   gradio
     #   gradio-client
 idna==3.20

@@ -14,8 +14,8 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/setup.sh [options]
 
-Create the Python 3.12 environment, install locked dependencies, validate the
-configuration, and import the local SIEM dataset.
+Create the Python 3.12 environment, install locked dependencies, download and
+verify the pinned SIEM dataset, validate configuration, and import into SQLite.
 
 Options:
   --skip-import   Do not import the dataset into SQLite.
@@ -88,6 +88,9 @@ else
   chmod 600 "${PROJECT_ROOT}/.env"
   echo "[setup] Created .env from .env.example; add optional Slack credentials there."
 fi
+
+echo "[setup] Ensuring the pinned Hugging Face dataset is available"
+"${VENV_PATH}/bin/clawwatch-demo" download-data --config "${CONFIG_PATH}"
 
 echo "[setup] Validating configuration"
 "${VENV_PATH}/bin/clawwatch-demo" config-check --config "${CONFIG_PATH}"

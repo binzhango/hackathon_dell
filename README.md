@@ -19,9 +19,9 @@ Run the idempotent setup script from the repository root:
 ```
 
 It creates the Python 3.12 environment, installs the development lockfile and editable
-package, protects or creates `.env`, validates the configuration, and safely imports the
-dataset. Use `--skip-import` for environment-only setup or `--runtime-only` to install the
-runtime lockfile.
+package, protects or creates `.env`, verifies the pinned dataset and downloads it from
+Hugging Face when missing, validates the configuration, and safely imports the dataset. Use
+`--skip-import` to omit the SQLite import or `--runtime-only` to install the runtime lockfile.
 
 Equivalent manual commands:
 

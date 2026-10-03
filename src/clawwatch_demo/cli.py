@@ -12,6 +12,7 @@ from pathlib import Path
 
 from clawwatch_demo import __version__
 from clawwatch_demo.config import AppConfig, ConfigError, load_config
+from clawwatch_demo.downloader import DatasetDownloadError, ensure_dataset
 from clawwatch_demo.importer import ImportFailure, import_dataset
 from clawwatch_demo.models import ImportProgress
 from clawwatch_demo.storage import database_summary
@@ -39,6 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     import_parser = subparsers.add_parser("import-data", help="import JSONL into SQLite")
     _add_config_argument(import_parser)
+
+    download_parser = subparsers.add_parser(
+        "download-data", help="download and verify the configured Hugging Face dataset"
+    )
+    _add_config_argument(download_parser)
 
     serve_parser = subparsers.add_parser("serve", help="launch the local Gradio dashboard")
     _add_config_argument(serve_parser)
@@ -107,7 +113,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        config = load_config(args.config)
+        config = load_config(args.config, require_dataset=args.command != "download-data")
     except ConfigError as exc:
         parser.error(str(exc))
 
@@ -116,6 +122,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "import-data":
         return _run_import(config)
+    if args.command == "download-data":
+        try:
+            result = ensure_dataset(config)
+        except (DatasetDownloadError, OSError) as exc:
+            print(f"Dataset download failed: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(asdict(result), indent=2, default=str))
+        return 0
     if args.command == "serve":
         from clawwatch_demo.ui.app import launch_dashboard
 
